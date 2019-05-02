@@ -10,7 +10,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -58,6 +57,8 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
                     userRepository.save(telegramUser);
                 }
 
+                //TODO - если пользователь заблокирован, отправить ему сообщение -
+
                 if(message.getText().equals("Наша визитка")){
                     sendCard(message);
                 }else if(message.getText().equals("Заказ услуги")){
@@ -94,6 +95,9 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
 
                     sendMsg(message,stringBuilder.toString());
                 }else {
+                    if (!telegramUser.isAdmin() && !telegramUser.isBlocked()){
+                        sendMessageToAmins(telegramUser,message.getText().toString());
+                    }
                     sendMsg(message,"Выберите действие!");
                 }
             }
@@ -118,35 +122,6 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
         }
     }
 
-    private void sendMsgWithButton(Message message,String msgText) {
-        SendMessage sdMessage = new SendMessage();
-        sdMessage.setChatId(message.getChatId().toString());
-
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        keyboardMarkup.setSelective(true);
-        keyboardMarkup.setResizeKeyboard(true);
-        keyboardMarkup.setOneTimeKeyboard(true);
-
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-        KeyboardRow row = new KeyboardRow();
-        row.add("Наша визитка");
-        keyboardRows.add(row);
-
-        row = new KeyboardRow();
-        row.add("Заказ услуги");
-        keyboardRows.add(row);
-
-        keyboardMarkup.setKeyboard(keyboardRows);
-        sdMessage.setReplyMarkup(keyboardMarkup);
-        sdMessage.setText(msgText);
-        try {
-            execute(sdMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-
     private void sendAnswer(Message message){
         SendMessage sdMessage = new SendMessage();
         sdMessage.setChatId(message.getChatId().toString());
@@ -167,9 +142,7 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
-
     }
-
 
     private ReplyKeyboardMarkup getMarkUpMenu(){
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
@@ -192,7 +165,6 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
     }
 
 
-
     private void sendMsg(Message message,String txtMsg){
         SendMessage sdMessage = new SendMessage();
         sdMessage.setChatId(message.getChatId().toString());
@@ -205,4 +177,50 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
         }
     }
 
+    private void sendMessageToAmins(TelegramUser telegramUserFrom,String textMessage){
+        List<TelegramUser> adminUsers = userRepository.findByIsAdminTrue();
+        StringBuilder msgBuilder = new StringBuilder();
+
+        if(telegramUserFrom.getCompanyName() != null){
+            msgBuilder.append("Сообщение от [");
+            msgBuilder.append(telegramUserFrom.getCompanyName());
+            msgBuilder.append("]: ");
+        }else {
+            msgBuilder.append("Неизвестный пользователь [");
+            msgBuilder.append(telegramUserFrom.getFirstName());
+            msgBuilder.append(" ");
+            msgBuilder.append(telegramUserFrom.getLastName());
+            msgBuilder.append("]: ");
+        }
+
+        msgBuilder.append(textMessage);
+
+        for (TelegramUser adminUser:adminUsers){
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(adminUser.getTelegramCode());
+            sendMessage.setText(msgBuilder.toString());
+            try {
+                execute(sendMessage);
+            }catch (TelegramApiException e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void sendMessageToAllUsers(String messageText){
+        List<TelegramUser> activeUsers = userRepository.findByIsBlockedFalse();
+
+        for (TelegramUser activeUser:activeUsers){
+            if(activeUser.getTelegramCode() != null) {
+                SendMessage sdMessage = new SendMessage();
+                sdMessage.setChatId(activeUser.getTelegramCode());
+                sdMessage.setText(messageText);
+                try {
+                    execute(sdMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 }

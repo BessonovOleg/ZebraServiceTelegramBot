@@ -8,4 +8,8 @@ import java.util.List;
 
 public interface TelegramUserRepository extends JpaRepository<TelegramUser,Long>{
     public TelegramUser findTelegramUserByTelegramCode(String telegramCode);
+
+    public List<TelegramUser> findByIsAdminTrue();
+
+    public List<TelegramUser> findByIsBlockedFalse();
 }
