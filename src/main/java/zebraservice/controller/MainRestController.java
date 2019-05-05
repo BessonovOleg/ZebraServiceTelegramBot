@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import zebraservice.bot.ZebraServiceBot;
+import zebraservice.model.TelegramMessageEntity;
 import zebraservice.model.TelegramUser;
+import zebraservice.repositories.TelegramMessageRepository;
 import zebraservice.repositories.TelegramUserRepository;
 
 import javax.validation.Valid;
@@ -19,6 +21,9 @@ public class MainRestController {
 
     @Autowired
     private ZebraServiceBot zebraServiceBot;
+
+    @Autowired
+    private TelegramMessageRepository messageRepository;
 
     @RequestMapping("/getusers")
     public List<TelegramUser> getAllUsers(){
@@ -42,4 +47,13 @@ public class MainRestController {
         }
     }
 
+    @PostMapping("/clearhistory")
+    public void clearHistory(){
+        messageRepository.deleteAll();
+    }
+
+    @RequestMapping("/getmessages")
+    public List<TelegramMessageEntity> getAllMessages(){
+        return messageRepository.findAllByOrderByDateEvent();
+    }
 }

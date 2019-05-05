@@ -13,7 +13,9 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import zebraservice.model.TelegramMessageEntity;
 import zebraservice.model.TelegramUser;
+import zebraservice.repositories.TelegramMessageRepository;
 import zebraservice.repositories.TelegramUserRepository;
 
 import java.io.File;
@@ -27,6 +29,9 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
 
     @Autowired
     private TelegramUserRepository userRepository;
+
+    @Autowired
+    private TelegramMessageRepository messageRepository;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -56,8 +61,6 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
                     telegramUser = new TelegramUser(message.getFrom());
                     userRepository.save(telegramUser);
                 }
-
-                //TODO - если пользователь заблокирован, отправить ему сообщение -
 
                 if(message.getText().equals("Наша визитка")){
                     sendCard(message);
@@ -95,6 +98,11 @@ public class ZebraServiceBot extends TelegramLongPollingBot {
 
                     sendMsg(message,stringBuilder.toString());
                 }else {
+                    TelegramMessageEntity messageEntity = new TelegramMessageEntity();
+                    messageEntity.setTelegramUser(telegramUser);
+                    messageEntity.setMessgaBody(message.getText().toString());
+                    messageRepository.save(messageEntity);
+
                     if (!telegramUser.isAdmin() && !telegramUser.isBlocked()){
                         sendMessageToAmins(telegramUser,message.getText().toString());
                     }
